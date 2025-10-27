@@ -1,0 +1,1375 @@
+{% comment %}
+  This section creates a dynamic size chart with gender and category tabs.
+  It integrates size tables from Shopify pages, allows for flexible content columns, and includes an optional additional size table below the columns if a page is assigned.
+  The unique_id for size chart instances is generated to prevent DOM conflicts in radio inputs.
+{% endcomment %}
+
+<section class="size-chart-section section-spacing" id="size-chart-section-page">
+  <div class="container">
+    <header class="section-header">
+      <h2 class="section-title">{{ section.settings.title | escape }}</h2>
+      {% if section.settings.subtitle != blank %}
+        <p class="section-subtitle">{{ section.settings.subtitle | escape }}</p>
+      {% endif %}
+    </header>
+
+    {%- assign genders = section.blocks | where: 'type', 'size_tab' | map: 'settings' | map: 'gender' | uniq -%}
+
+    {% if genders.size > 0 %}
+      <div class="tabs-container">
+        <div class="gender-tabs" role="tablist" aria-label="Select gender">
+          {% for gender in genders %}
+            {%- assign gender_title = gender | capitalize -%}
+            <button
+              class="gender-tab {% if forloop.first %}active{% endif %}"
+              data-gender="{{ gender | escape }}"
+              role="tab"
+              aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+              aria-controls="{{ gender | escape }}-panel"
+              id="{{ gender | escape }}-tab"
+            >
+              {{ gender_title | escape }}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="content-card">
+      {% for gender_value in genders %}
+        <div
+          id="{{ gender_value | escape }}-panel"
+          class="gender-content {% unless forloop.first %}hidden{% endunless %}"
+          role="tabpanel"
+          aria-labelledby="{{ gender_value | escape }}-tab"
+          {% unless forloop.first %}
+            hidden
+          {% endunless %}
+        >
+          <div class="content-grid">
+            <aside class="category-nav">
+              <ul class="category-nav-list" role="tablist" aria-label="Select category">
+                {%- for block in section.blocks -%}
+                  {%- if block.type == 'size_tab' and block.settings.gender == gender_value -%}
+                    <li>
+                      <button
+                        class="category-tab"
+                        data-tab="{{ gender_value | escape }}-{{ block.settings.category | escape }}"
+                        role="tab"
+                        aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                        aria-controls="{{ gender_value | escape }}-{{ block.settings.category | escape }}-content"
+                        id="{{ gender_value | escape }}-{{ block.settings.category | escape }}-tab"
+                        data-block-id="{{ block.id }}"
+                      >
+                        {{ block.settings.category_title | escape }}
+                      </button>
+                    </li>
+                  {%- endif -%}
+                {%- endfor -%}
+              </ul>
+            </aside>
+
+            <main class="category-content-area">
+              {%- for block in section.blocks -%}
+                {%- if block.type == 'size_tab' and block.settings.gender == gender_value -%}
+                  <div
+                    id="{{ gender_value | escape }}-{{ block.settings.category | escape }}-content"
+                    class="category-content {% unless forloop.first %}hidden{% endunless %}"
+                    role="tabpanel"
+                    aria-labelledby="{{ gender_value | escape }}-{{ block.settings.category | escape }}-tab"
+                    {% unless forloop.first %}
+                      hidden
+                    {% endunless %}
+                  >
+                    <div
+                      class="size-table {{ block.settings.custom_class | escape }}"
+                      data-section-id="{{ section.id }}-{{ gender_value | escape }}-{{ block.settings.category | escape }}"
+                    >
+                      {% if block.settings.heading != blank %}
+                        <h3 class="table-title">{{ block.settings.heading | escape }}</h3>
+                      {% endif %}
+                      {% if block.settings.size_table_page != blank %}
+                        {% assign unique_id = section.id
+                          | append: '-'
+                          | append: gender_value
+                          | append: '-'
+                          | append: block.settings.category
+                          | append: '-'
+                          | append: forloop.index
+                        %}
+                        {% assign table_content = pages[block.settings.size_table_page].content %}
+                        {% capture unique_id_placeholder %}{{ unique_id }}{% endcapture %}
+                        <div class="table-content">
+                          {{ table_content | replace: unique_id_placeholder, unique_id }}
+                        </div>
+                      {% else %}
+                        <p class="no-table-message">No size table page selected.</p>
+                      {% endif %}
+                    </div>
+
+                    {%- for content_set_block in section.blocks -%}
+                      {%- if content_set_block.type == 'content_columns_set'
+                        and content_set_block.settings.gender == gender_value
+                        and content_set_block.settings.category == block.settings.category
+                      -%}
+                        {% if content_set_block.settings.columns_heading != blank %}
+                          <h3 class="columns-heading">{{ content_set_block.settings.columns_heading }}</h3>
+                        {% endif %}
+                        <div class="content-columns-grid">
+                          {% for i in (1..4) %}
+                            {%- assign media_type_key = 'media_type_' | append: i -%}
+                            {%- assign image_key = 'image_' | append: i -%}
+                            {%- assign video_key = 'video_' | append: i -%}
+                            {%- assign text_key = 'text_' | append: i -%}
+                            {%- assign description_key = 'description_' | append: i -%}
+                            {%- assign button_text_key = 'button_text_' | append: i -%}
+                            {%- assign button_link_key = 'button_link_' | append: i -%}
+
+                            {%- assign has_text = false -%}
+                            {%- if content_set_block.settings[text_key] != blank -%}
+                              {%- assign has_text = true -%}
+                            {%- endif -%}
+
+                            {%- assign has_description = false -%}
+                            {%- if content_set_block.settings[description_key] != blank -%}
+                              {%- assign has_description = true -%}
+                            {%- endif -%}
+
+                            {%- assign has_button = false -%}
+                            {%- if content_set_block.settings[button_text_key] != blank
+                              and content_set_block.settings[button_link_key] != blank
+                            -%}
+                              {%- assign has_button = true -%}
+                            {%- endif -%}
+
+                            {% if has_text
+                              or has_description
+                              or has_button
+                              or content_set_block.settings[image_key]
+                              or content_set_block.settings[video_key]
+                            %}
+                              <div class="image-text-card">
+                                {% if content_set_block.settings[media_type_key] == 'image'
+                                  and content_set_block.settings[image_key]
+                                %}
+                                  <div class="card-image-container">
+                                    <img
+                                      src="{{ content_set_block.settings[image_key] | img_url: '500x' }}"
+                                      alt="{{ content_set_block.settings[image_key].alt | escape }}"
+                                      class="card-image"
+                                      loading="lazy"
+                                      width="250"
+                                      height="250"
+                                    >
+                                  </div>
+                                {% elsif content_set_block.settings[media_type_key] == 'video'
+                                  and content_set_block.settings[video_key]
+                                %}
+                                  <div class="card-video-container">
+                                    {{
+                                      content_set_block.settings[video_key]
+                                      | video_tag:
+                                        controls: true,
+                                        autoplay: true,
+                                        loop: true,
+                                        muted: true,
+                                        class: 'card-video'
+                                    }}
+                                  </div>
+                                {% endif %}
+
+                                <div class="card-content">
+                                  {% if has_text %}
+                                    <h4 class="card-title">{{ content_set_block.settings[text_key] | escape }}</h4>
+                                  {% endif %}
+                                  {% if has_description %}
+                                    <div class="card-description">
+                                      {{ content_set_block.settings[description_key] }}
+                                    </div>
+                                  {% endif %}
+                                  {% if has_button %}
+                                    <a
+                                      href="{{ content_set_block.settings[button_link_key] | escape }}"
+                                      class="card-button"
+                                      aria-label="{{ content_set_block.settings[button_text_key] | escape }}"
+                                    >
+                                      {{ content_set_block.settings[button_text_key] | escape }}
+                                    </a>
+                                  {% endif %}
+                                </div>
+                              </div>
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+
+                        {% if content_set_block.settings.additional_size_table_page != blank %}
+                          {% assign additional_unique_id = section.id
+                            | append: '-'
+                            | append: gender_value
+                            | append: '-'
+                            | append: block.settings.category
+                            | append: '-additional-'
+                            | append: forloop.index
+                          %}
+                          {% assign additional_table_content = pages[content_set_block.settings.additional_size_table_page].content %}
+                          {% capture unique_id_placeholder %}{{ unique_id }}{% endcapture %}
+                          <div
+                            class="size-table {{ content_set_block.settings.additional_custom_class | escape }}"
+                            data-section-id="{{ section.id }}-{{ gender_value | escape }}-{{ block.settings.category | escape }}-additional"
+                          >
+                            {% if content_set_block.settings.additional_heading != blank %}
+                              <h3 class="table-title">{{ content_set_block.settings.additional_heading | escape }}</h3>
+                            {% endif %}
+                            <div class="table-content">
+                              {{ additional_table_content | replace: unique_id_placeholder, additional_unique_id }}
+                            </div>
+                          </div>
+                        {% endif %}
+                      {%- endif -%}
+                    {%- endfor -%}
+                  </div>
+                {%- endif -%}
+              {%- endfor -%}
+            </main>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% style %}
+  /* Base Section Styles */
+
+  .size-chart-section { 
+    line-height: 1.5;
+    padding-left:20px;
+       padding-right:20px;
+  }
+
+  .size-chart-section .container {
+    margin: 0 auto;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1400px;
+  }
+
+  /* Section Header */
+  .section-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    width: 100%;
+    display: flex;
+    row-gap: 0px;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .section-title { 
+    font-weight: 400;
+    color: #222;
+    margin: 0 0 0.5rem;
+  }
+
+  .section-subtitle {
+    font-size: 14px;
+    color: #222222;
+    max-width: 700px;
+    margin: 0;
+    padding: 0 15px;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Columns Heading */
+  .columns-heading {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin: 2rem 0 1rem;
+    text-align: left;
+  }
+
+  /* Responsive adjustments */
+   
+  @media (max-width: 767px) {
+    .section-subtitle {
+      padding: 0 10px;
+    }
+
+    .columns-heading {
+      font-size: 1.25rem;
+      text-align: left;
+    }
+  }
+
+  .wac-size-wrapper {
+    max-width: 100%;
+    padding: 0 0;
+  }
+
+  /* Gender Tabs Container */
+  .tabs-container {
+    display: flex;
+    justify-content: left;
+    margin-bottom: 30px;
+    width: 100%;
+    position: sticky;
+    top: 62px;
+    background: #fff;
+    z-index: 2;
+    padding-bottom: 10px;
+    transition: top 0.2s ease-in;
+  }
+
+  /* Gender Tabs Container */
+  .gender-tabs {
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    width: auto;
+    justify-content: center;
+    position: relative;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .gender-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: #555;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    position: relative;
+    margin: 0;
+    text-transform: uppercase;
+    border-bottom: 2px solid transparent;
+  }
+
+  .gender-tab.active,
+  .gender-tab[aria-selected='true'] {
+    color: #000;
+    background-color: transparent;
+  }
+
+  .gender-tab.active::after,
+  .gender-tab[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #000;
+  }
+
+  .gender-tab-line {
+    width: 1px;
+    height: 20px;
+    background-color: #000;
+    margin: 0 1rem;
+  }
+
+  .gender-tab:hover:not(.active) {
+    color: #333;
+  }
+
+  .gender-tab:focus {
+    outline: none;
+    color: #000;
+  }
+
+  /* Content Card */
+  .content-card {
+    background-color: white;
+    border-radius: 12px;
+    /* overflow: hidden; */
+    width: 100%;
+  }
+
+  /* Content Grid */
+  .content-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .content-grid {
+      flex-direction: row;
+      gap: 2rem;
+    }
+  }
+
+  /* Category Navigation */
+  .category-nav {
+    width: 100%;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 1rem;
+  }
+  .wac-size-content {
+    padding-top: 15px;
+    overflow-x: auto;
+    width: calc(100% + 20px);
+  }
+
+  @media (min-width: 768px) {
+    .category-nav {
+      width: 250px;
+      min-width: 250px;
+      border-bottom: none;
+      border-right: 0px solid #eee !important;
+      padding-bottom: 0;
+    }
+    .wac-size-content {
+      width: 100%;
+    }
+
+    .category-nav-list {
+      display: flex;
+      flex-direction: row;
+      gap: 0.5rem;
+      overflow-x: auto;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: #ddd transparent;
+    }
+
+    .category-nav-list::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .category-nav-list::-webkit-scrollbar-thumb {
+      background-color: #ddd;
+      border-radius: 2px;
+    }
+    .image-text-card {
+      width: calc(50% - 20px) !important;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .category-nav-list {
+      flex-direction: column;
+      overflow-x: visible;
+      gap: 0.25rem;
+      position: sticky;
+      top: 170px;
+      transition: top 0.2s ease-in;
+    }
+  }
+
+  .category-nav-list li {
+    margin: 0;
+    flex-shrink: 0;
+    padding: 0;
+  }
+
+  .category-tab {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #555;
+    background-color: transparent;
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .category-tab.active,
+  .category-tab[aria-selected='true'] {
+    background-color: #000;
+    color: #fff;
+    border-color: #000;
+  }
+
+  .category-tab:hover:not([aria-selected='true']) {
+    background-color: #f9f9f9;
+    color: #333;
+  }
+
+  .category-tab:focus {
+    outline: none;
+  }
+
+  /* Category Content Area */
+  .category-content-area {
+    width: 100%;
+    min-width: 0; /* Prevent flex overflow */
+    position: relative;
+  }
+
+  @media (min-width: 768px) {
+    .category-content-area {
+      flex: 1;
+    }
+  }
+
+  /* Table Styles */
+  .size-table {
+    margin-bottom: 2rem;
+  }
+
+  .table-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    color: #222;
+  }
+
+  .table-content {
+    max-width: 100%;
+    /* overflow-x: auto; */
+    margin-bottom: 2rem;
+  }
+
+  .table-content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    color: #555;
+    margin-bottom: 1rem;
+    min-width: 600px;
+  }
+
+  .table-content th,
+  .table-content td {
+    border: 1px solid #e1e1e1;
+    padding: 0.75rem;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .table-content th {
+    background-color: #f9f9f9;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .table-content tr:nth-child(even) {
+    background-color: #fcfcfc;
+  }
+
+  .table-content tr:hover {
+    background-color: #f5f5f5;
+  }
+
+  .no-table-message {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    margin: 2rem 0;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+  }
+
+  /* Content Columns Grid */
+  .content-columns-grid {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin: 40px 0;
+    text-align: center;
+    flex-wrap: wrap;
+    align-items: start;
+  }
+
+  @media (min-width: 640px) {
+    .content-columns-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .content-columns-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Image Text Cards */
+  .image-text-card {
+    background-color: white;
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: start;
+  }
+
+  .card-video-container {
+    position: relative;
+    width: 100%;
+  }
+  .card-video-container:before {
+    content: '';
+    display: block;
+    position: static;
+    width: 100%;
+    padding-top: calc(504 / 336 * 100%);
+  }
+  .card-video-container > * {
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute;
+    object-fit: cover;
+    object-position: center center;
+    top: 0;
+  }
+
+  .card-image-container {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+  }
+  .card-image-container:before {
+    content: '';
+    display: block;
+    position: static;
+    width: 100%;
+    padding-top: calc(400 / 280 * 100%);
+  }
+  .card-image-container > * {
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute;
+    object-fit: cover;
+    object-position: center center;
+    top: 0;
+  }
+
+  /* 
+  .card-image { 
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  } */
+
+  .card-content {
+    padding: 1 rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card-title {
+    color: #222;
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+    font-size: 16px;
+    line-height: 1.3;
+    margin-top: 5px;
+    margin-bottom: 15px;
+  }
+
+  .card-description {
+    color: #666;
+    margin-bottom: 1.25rem;
+    text-align: center;
+    flex: 1;
+  }
+
+  .card-description p {
+    font-size: 14px;
+    margin-top: 8px;
+    color: #616161;
+    font-weight: 500;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .card-description p:last-child {
+    margin-bottom: 0;
+  }
+
+  .card-description ul,
+  .card-description ol {
+    text-align: left;
+    padding-left: 1.25rem;
+    margin: 0.75rem 0;
+  }
+
+  .card-description li {
+    margin-bottom: 0.25rem;
+  }
+
+  .card-button {
+    display: inline-block;
+    background-color: white;
+    color: black;
+    font-weight: 500;
+    padding: 0.725rem 1.25rem;
+    border: 1px solid black;
+    border-radius: 0;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    text-align: center;
+    margin-top: auto;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-transform: uppercase;  
+    width: 100%; /* Added to match card-content width */
+  }
+
+  .card-button:hover {
+    background-color: black;
+    color: white;
+  }
+
+  .card-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+  }
+  /* Hidden utility */
+  .hidden {
+    display: none;
+  }
+
+  .category-nav ul {
+    list-style: none;
+    margin: 0;
+  }
+
+  .wac-size-tabs {
+    margin-top: 0px;
+  }
+  .image-text-card {
+  }
+
+  /* Mobile Responsive Adjustments */
+  @media (max-width: 767px) {
+   
+    .section-subtitle {
+      font-size: 1rem;
+    }
+
+    .gender-tabs {
+      width: 100%;
+      overflow-y: hidden;
+      overflow-x: auto;
+      display: inline-flex;
+      justify-content: flex-start;
+    }
+
+    .gender-tab {
+      padding: 0.5rem 1rem;
+      flex-shrink: 0;
+    }
+
+    .content-card {
+      padding: 0rem;
+    }
+
+    .content-columns-grid {
+      grid-template-columns: 1fr;
+      gap: 1.3rem;
+    }
+
+    .card-content {
+      padding: 1rem;
+    }
+    .category-nav ul {
+      list-style: none;
+      margin: 0;
+      display: flex;
+    }
+    .category-nav {
+      padding-bottom: 0rem;
+    }
+    .wac-size-wrapper {
+      padding: 0 10px;
+    }
+  }
+
+  /* Print Styles */
+  @media print {
+    .size-chart-section { 
+      line-height: 1.5;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 1400px;
+      padding-left: 15px;
+    }
+
+    .content-card {
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .gender-tabs,
+    .category-nav {
+      display: none;
+    }
+
+    .gender-content,
+    .category-content {
+      display: block !important;
+      page-break-inside: avoid;
+    }
+
+    .table-content table {
+      min-width: 100%;
+    }
+  }
+
+  @media (min-width: 1000px) {
+      .card-title { 
+    margin-top: 24px;
+      }
+    .tabs-container {
+      top: 60px;
+        margin-bottom: 40px;
+    }
+
+    .image-text-card {
+      width: calc(25% - 20px) !important;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .tabs-container {
+      top: 77px;
+    }
+  }
+
+  @media (min-width: 1900px) {
+    .size-chart-section .container {
+      max-width: 1550px;
+    }
+  }
+  .wac-unit-toggle {
+    z-index: 1 !important;
+  }
+{% endstyle %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    class SizeChartSection {
+      constructor(sectionElement) {
+        this.section = sectionElement;
+        if (!this.section) {
+          console.error('Size chart section element not found');
+          return;
+        }
+        this.genderTabs = this.section.querySelectorAll('.gender-tab');
+        this.categoryTabs = this.section.querySelectorAll('.category-tab');
+        if (this.genderTabs.length === 0) {
+          console.warn('No gender tabs found in the size chart section');
+        }
+        if (this.categoryTabs.length === 0) {
+          console.warn('No category tabs found in the size chart section');
+        }
+        this.bindEvents();
+        this.initializeTabs();
+      }
+      bindEvents() {
+        this.genderTabs.forEach((tab) => {
+          tab.addEventListener('click', this.handleGenderTabClick.bind(this));
+          tab.addEventListener('keydown', this.handleTabKeydown.bind(this));
+        });
+        this.categoryTabs.forEach((tab) => {
+          tab.addEventListener('click', this.handleCategoryTabClick.bind(this));
+          tab.addEventListener('keydown', this.handleTabKeydown.bind(this));
+        });
+      }
+      handleGenderTabClick(event) {
+        event.preventDefault();
+        const clickedTab = event.currentTarget;
+        const genderId = clickedTab.dataset.gender;
+        if (!genderId) {
+          console.error('Gender tab missing data-gender attribute');
+          return;
+        }
+        // Update gender tab states
+        this.genderTabs.forEach((t) => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+          t.setAttribute('tabindex', '-1');
+        });
+        clickedTab.classList.add('active');
+        clickedTab.setAttribute('aria-selected', 'true');
+        clickedTab.setAttribute('tabindex', '0');
+        clickedTab.focus();
+        setTimeout(() => {
+          const outerContent = document.getElementById('size-chart-section-page');
+          if (outerContent) {
+            outerContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 500);
+        // Hide all gender content
+        this.section.querySelectorAll('.gender-content').forEach((c) => {
+          c.classList.add('hidden');
+          c.setAttribute('hidden', 'true');
+        });
+        // Show selected gender content
+        const genderContent = this.section.querySelector(`#${CSS.escape(genderId)}-panel`);
+        if (!genderContent) {
+          console.error(`Gender content panel not found for ID: ${genderId}-panel`);
+          return;
+        }
+        genderContent.classList.remove('hidden');
+        genderContent.removeAttribute('hidden');
+        this.setActiveCategoryContent(genderContent);
+      }
+      handleCategoryTabClick(event) {
+        event.preventDefault();
+        const clickedTab = event.currentTarget;
+        const categoryId = clickedTab.dataset.tab;
+        if (!categoryId) {
+          console.error('Category tab missing data-tab attribute');
+          return;
+        }
+        const genderContent = clickedTab.closest('.gender-content');
+        if (!genderContent) {
+          console.error('Gender content not found for category tab');
+          return;
+        }
+        this.setActiveCategoryContent(genderContent, clickedTab);
+      }
+      handleTabKeydown(event) {
+        const tab = event.currentTarget;
+        const tabs = tab.closest('[role="tablist"]').querySelectorAll('[role="tab"]');
+        const currentIndex = Array.from(tabs).indexOf(tab);
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+          event.preventDefault();
+          const nextIndex = (currentIndex + 1) % tabs.length;
+          tabs[nextIndex].focus();
+          tabs[nextIndex].click();
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          tabs[prevIndex].focus();
+          tabs[prevIndex].click();
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          tabs[0].focus();
+          tabs[0].click();
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          tabs[tabs.length - 1].focus();
+          tabs[tabs.length - 1].click();
+        }
+      }
+      setActiveCategoryContent(genderContent, activeCategoryTab = null) {
+        const categoryTabsInGender = genderContent.querySelectorAll('.category-tab');
+        if (categoryTabsInGender.length === 0) {
+          console.warn('No category tabs found in gender content');
+          return;
+        }
+        // Update tab states within this gender
+        categoryTabsInGender.forEach((t) => {
+          t.setAttribute('aria-selected', 'false');
+          t.setAttribute('tabindex', '-1');
+        });
+        const tabToActivate = activeCategoryTab || categoryTabsInGender[0];
+        if (!tabToActivate) {
+          console.error('No category tab available to activate');
+          return;
+        }
+        tabToActivate.setAttribute('aria-selected', 'true');
+        tabToActivate.setAttribute('tabindex', '0');
+        if (activeCategoryTab) tabToActivate.focus();
+        // Hide all category content within this gender
+        genderContent.querySelectorAll('.category-content').forEach((c) => {
+          c.classList.add('hidden');
+          c.setAttribute('hidden', 'true');
+        });
+        // Show selected category content
+        const categoryId = tabToActivate.dataset.tab;
+        const content = genderContent.querySelector(`#${CSS.escape(categoryId)}-content`);
+        if (!content) {
+          console.error(`Category content not found for ID: ${categoryId}-content`);
+          return;
+        }
+        content.classList.remove('hidden');
+        content.removeAttribute('hidden');
+      }
+      initializeTabs() {
+        const initialGenderTab = this.section.querySelector('.gender-tab.active') || this.genderTabs[0];
+        if (!initialGenderTab) {
+          console.warn('No initial gender tab found');
+          return;
+        }
+        initialGenderTab.classList.add('active');
+        initialGenderTab.setAttribute('aria-selected', 'true');
+        initialGenderTab.setAttribute('tabindex', '0');
+        Array.from(this.genderTabs).forEach((tab) => {
+          if (tab !== initialGenderTab) {
+            tab.setAttribute('aria-selected', 'false');
+            tab.setAttribute('tabindex', '-1');
+          }
+        });
+        const initialGenderContent = this.section.querySelector(
+          `#${CSS.escape(initialGenderTab.dataset.gender)}-panel`
+        );
+        if (!initialGenderContent) {
+          console.error(`Initial gender content not found for ID: ${initialGenderTab.dataset.gender}-panel`);
+          return;
+        }
+        initialGenderContent.classList.remove('hidden');
+        initialGenderContent.removeAttribute('hidden');
+        this.setActiveCategoryContent(initialGenderContent);
+      }
+    }
+    const sizeChartSections = document.querySelectorAll('.size-chart-section');
+    if (sizeChartSections.length === 0) {
+      console.error('No size chart sections found on the page');
+    }
+    sizeChartSections.forEach((section) => new SizeChartSection(section));
+  });
+</script>
+{% schema %}
+{
+  "name": "Size Chart",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Section Title",
+      "default": "Size Chart"
+    },
+    {
+      "type": "textarea",
+      "id": "subtitle",
+      "label": "Section Subtitle",
+      "default": "Find the perfect fit with our detailed size guide."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "size_tab",
+      "name": "Size Tab",
+      "settings": [
+        {
+          "type": "text",
+          "id": "gender",
+          "label": "Gender",
+          "info": "Enter the gender for this size tab (e.g., men, women, unisex)."
+        },
+        {
+          "type": "text",
+          "id": "category",
+          "label": "Category",
+          "info": "Enter the category for this size tab (e.g., tops, bottoms, dresses)."
+        },
+        {
+          "type": "text",
+          "id": "category_title",
+          "label": "Category Title",
+          "info": "Display title for the category tab.",
+          "default": "Category"
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Size Table Heading",
+          "info": "Optional heading for the size table."
+        },
+        {
+          "type": "page",
+          "id": "size_table_page",
+          "label": "Size Table Page",
+          "info": "Select a page containing the size table content."
+        },
+        {
+          "type": "text",
+          "id": "custom_class",
+          "label": "Custom CSS Class",
+          "info": "Optional custom CSS class for the size table."
+        }
+      ]
+    },
+    {
+      "type": "content_columns_set",
+      "name": "Content Columns Set",
+      "settings": [
+        {
+          "type": "text",
+          "id": "gender",
+          "label": "Gender",
+          "info": "Enter the gender to associate with this content set (must match a size tab gender)."
+        },
+        {
+          "type": "text",
+          "id": "category",
+          "label": "Category",
+          "info": "Enter the category to associate with this content set (must match a size tab category)."
+        },
+        {
+          "type": "text",
+          "id": "columns_heading",
+          "label": "Columns Heading",
+          "info": "Optional heading for the content columns."
+        },
+
+        {
+          "type": "select",
+          "id": "media_type_1",
+          "label": "Media Type",
+          "options": [
+            {
+              "value": "image",
+              "label": "Image"
+            },
+            {
+              "value": "video",
+              "label": "Video"
+            }
+          ],
+          "default": "image"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_1",
+          "label": "Image",
+          "visible_if": "{{ block.settings.media_type_1 == 'image' }}"
+        },
+        {
+          "type": "video",
+          "id": "video_1",
+          "label": "Video",
+          "visible_if": "{{ block.settings.media_type_1 == 'video' }}"
+        },
+        {
+          "type": "text",
+          "id": "text_1",
+          "label": "Column 1 Title"
+        },
+        {
+          "type": "richtext",
+          "id": "description_1",
+          "label": "Column 1 Description"
+        },
+        {
+          "type": "text",
+          "id": "button_text_1",
+          "label": "Column 1 Button Text"
+        },
+        {
+          "type": "url",
+          "id": "button_link_1",
+          "label": "Column 1 Button Link"
+        },
+        {
+          "type": "select",
+          "id": "media_type_2",
+          "label": "Media Type",
+          "options": [
+            {
+              "value": "image",
+              "label": "Image"
+            },
+            {
+              "value": "video",
+              "label": "Video"
+            }
+          ],
+          "default": "image"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_2",
+          "label": "Image",
+          "visible_if": "{{ block.settings.media_type_2 == 'image' }}"
+        },
+        {
+          "type": "video",
+          "id": "video_2",
+          "label": "Video",
+          "visible_if": "{{ block.settings.media_type_2 == 'video' }}"
+        },
+        {
+          "type": "text",
+          "id": "text_2",
+          "label": "Column 2 Title"
+        },
+        {
+          "type": "richtext",
+          "id": "description_2",
+          "label": "Column 2 Description"
+        },
+        {
+          "type": "text",
+          "id": "button_text_2",
+          "label": "Column 2 Button Text"
+        },
+        {
+          "type": "url",
+          "id": "button_link_2",
+          "label": "Column 2 Button Link"
+        },
+        {
+          "type": "select",
+          "id": "media_type_3",
+          "label": "Media Type",
+          "options": [
+            {
+              "value": "image",
+              "label": "Image"
+            },
+            {
+              "value": "video",
+              "label": "Video"
+            }
+          ],
+          "default": "image"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_3",
+          "label": "Image",
+          "visible_if": "{{ block.settings.media_type_3 == 'image' }}"
+        },
+        {
+          "type": "video",
+          "id": "video_3",
+          "label": "Video",
+          "visible_if": "{{ block.settings.media_type_3 == 'video' }}"
+        },
+        {
+          "type": "text",
+          "id": "text_3",
+          "label": "Column 3 Title"
+        },
+        {
+          "type": "richtext",
+          "id": "description_3",
+          "label": "Column 3 Description"
+        },
+        {
+          "type": "text",
+          "id": "button_text_3",
+          "label": "Column 3 Button Text"
+        },
+        {
+          "type": "url",
+          "id": "button_link_3",
+          "label": "Column 3 Button Link"
+        },
+        {
+          "type": "select",
+          "id": "media_type_4",
+          "label": "Media Type",
+          "options": [
+            {
+              "value": "image",
+              "label": "Image"
+            },
+            {
+              "value": "video",
+              "label": "Video"
+            }
+          ],
+          "default": "image"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_4",
+          "label": "Image",
+          "visible_if": "{{ block.settings.media_type_4 == 'image' }}"
+        },
+        {
+          "type": "video",
+          "id": "video_4",
+          "label": "Video",
+          "visible_if": "{{ block.settings.media_type_4 == 'video' }}"
+        },
+        {
+          "type": "text",
+          "id": "text_4",
+          "label": "Column 4 Title"
+        },
+        {
+          "type": "richtext",
+          "id": "description_4",
+          "label": "Column 4 Description"
+        },
+        {
+          "type": "text",
+          "id": "button_text_4",
+          "label": "Column 4 Button Text"
+        },
+        {
+          "type": "url",
+          "id": "button_link_4",
+          "label": "Column 4 Button Link"
+        },
+        {
+          "type": "text",
+          "id": "additional_heading",
+          "label": "Additional Size Table Heading",
+          "info": "Optional heading for the additional size table."
+        },
+        {
+          "type": "page",
+          "id": "additional_size_table_page",
+          "label": "Additional Size Table Page",
+          "info": "Select a page containing an additional size table content."
+        },
+        {
+          "type": "text",
+          "id": "additional_custom_class",
+          "label": "Additional Size Table Custom CSS Class",
+          "info": "Optional custom CSS class for the additional size table."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Size Chart",
+      "category": "Custom",
+      "blocks": [
+        {
+          "type": "size_tab",
+          "settings": {
+            "gender": "men",
+            "category": "tops",
+            "category_title": "Tops",
+            "heading": "Men's Tops Size Chart"
+          }
+        },
+        {
+          "type": "size_tab",
+          "settings": {
+            "gender": "women",
+            "category": "tops",
+            "category_title": "Tops",
+            "heading": "Women's Tops Size Chart"
+          }
+        },
+        {
+          "type": "content_columns_set",
+          "settings": {
+            "gender": "men",
+            "category": "tops",
+            "columns_heading": "Fit Guide"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}
