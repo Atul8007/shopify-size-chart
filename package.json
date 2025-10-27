@@ -1,0 +1,33 @@
+{
+  "name": "@atul8007/shopify-size-chart",
+  "version": "1.0.1",
+  "description": "A reusable Shopify size chart section with gender and category tabs",
+  "main": "index.js",
+  "scripts": {
+    "install-section": "node index.js"
+  },
+  "keywords": [
+    "shopify",
+    "size-chart",
+    "liquid",
+    "theme",
+    "section"
+  ],
+  "author": "Atul <atul.a@webandcrafts.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atul8007/shopify-size-chart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/atul8007/shopify-size-chart/issues"
+  },
+  "homepage": "https://github.com/atul8007/shopify-size-chart#readme",
+  "dependencies": {
+    "fs-extra": "^11.1.0"
+  },
+  "files": [
+    "src/**/*",
+    "index.js"
+  ]
+}
